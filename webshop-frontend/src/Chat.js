@@ -54,14 +54,13 @@ class Chat extends Component {
         const { messages } = this.state
         const msg = messages.reduce((acc, cur) => acc + cur + "\n\n", "").toString()
         return (
-            <div>
-                <Card style={{ maxWidth: 300 }}>
+                <Card>
                     <CardHeader>
                         <h3>Chat with us!</h3>
                     </CardHeader>
                     {/* {JSON.stringify(this.state.messages)} */}
                     <CardBody className="p-0">
-                        <textarea style={{ height: 400, width: 300 }} value={msg} readOnly />
+                        <textarea style={{ height: 400, width:"100%" }} value={msg} readOnly />
                     </CardBody>
                     <CardFooter className="p-0">
                         <form className="m-0" style={{ width: 300 }} onSubmit={this.handleChatSubmit}>
@@ -78,7 +77,6 @@ class Chat extends Component {
                         </form>
                     </CardFooter>
                 </Card>
-            </div>
         );
     }
 }
