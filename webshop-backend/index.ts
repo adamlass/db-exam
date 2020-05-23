@@ -3,17 +3,26 @@ import express, { NextFunction } from 'express'
 import bodyParser from 'body-parser'
 import socketio, { Packet, Socket } from "socket.io"
 import http from "http"
-import ioredis from "ioredis"
 import mongoose from "mongoose"
+import { Client } from 'pg'
+import Escape from "pg-escape"
 
 
+var redis = require('ioredis');
+const neo4j = require('neo4j-driver')
 
+
+//Neo4j
+const driver = neo4j.driver("bolt://localhost:7687", neo4j.auth.basic("neo4j", "items"))
+const session = driver.session()
+
+
+//Socketio & express
 const app = express()
 const server = new http.Server(app)
 const io = socketio(server, {
     origins: '*:*',
 })
-
 
 app.use(bodyParser.json());
 app.use(cors())
@@ -21,6 +30,7 @@ app.use(cors())
 server.listen(3000, () => console.log("App is online"))
 
 
+//mongoose
 mongoose.connect(
     "mongodb+srv://mongo_user:mongo_user@webshop-vf9eh.mongodb.net/test?retryWrites=true&w=majority",
     { useNewUrlParser: true, useUnifiedTopology: true }
@@ -32,12 +42,17 @@ db.once("open", function () {
     console.log("connection open");
 });
 
-var redis = require('ioredis');
-
-
-
-
-
+//Postgres
+const postgres = new Client({
+    "user": "postgres",
+    "host": "localhost",
+    "database": "webshop",
+    "password": "postgres",
+    "port": 5433
+})
+postgres.connect()
+    .then(() => console.info("Sucessfully connected to DB!"))
+    .catch(() => console.error('Could not connect to DB!'))
 
 
 io.on('connection', async (socket: Socket) => {
@@ -46,13 +61,13 @@ io.on('connection', async (socket: Socket) => {
     console.log('Connection! Id:', socket.id)
     var subscriber = redis.createClient();
 
-    const channel = "testChannel"
+    const channel = socket.id
 
     subscriber.on('message', (channel: string, message: string) => {
         socket.emit("message", "Customer", message)
     });
 
-    subscriber.subscribe("notification")
+    subscriber.subscribe(channel)
 
     var publisher = redis.createClient();
 
@@ -71,12 +86,65 @@ io.on('connection', async (socket: Socket) => {
     })
 
     socket.on("sendMessage", (message) => {
-        publisher.publish("notification", message);
+        publisher.publish(channel, message);
     })
 
 })
 
 app.get("/", (req, res) => res.send("Hello world"))
+app.get("/categories", async (req, res) => {
+    try {
+        let result = await session.run(
+            'MATCH (n:Category) RETURN n.name',
+        )
+
+        result = result.records.map((record: any) => record["_fields"][0])
+        res.send(result)
+
+    } catch (e) {
+        handleError(e, res)
+    }
+
+})
+
+app.get("/products", async (req, res) => {
+    try {
+        const { category } = req.query
+
+        let result = await session.run(
+            'MATCH (c:Category)-[:CONTAINS]->(i:Item) WHERE c.name = $name RETURN i.id',
+            { name: category }
+        )
+
+        result = result.records.map((record: any) => record["_fields"][0])
+
+        console.log(result)
+
+        let res1: object[] = []
+
+        for (const id of result) {
+            // console.log(id)
+            const sql = `
+                SELECT * 
+                FROM public.item
+                WHERE id = $1
+            `
+            const escaped = Escape(sql)
+
+            const res = await postgres.query(escaped, [id])
+            if(res.rowCount !== 1) continue 
+            res1.push(res.rows[0])
+        }
+
+
+        res.send(res1)
+
+    } catch (e) {
+        handleError(e, res)
+    }
+
+})
+
 
 
 
