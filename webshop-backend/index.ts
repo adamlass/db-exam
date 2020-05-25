@@ -63,10 +63,13 @@ postgres.connect()
 
 
 io.on('connection', async (socket: Socket) => {
-    socket.emit("message", "Shop", "Welcome!")
+    var subscriber = redis.createClient();
+    const randomKey = await subscriber.randomkey()
+    const randomMsg = await subscriber.get(randomKey)
+
+    socket.emit("message", "Shop", randomMsg)
 
     console.log('Connection! Id:', socket.id)
-    var subscriber = redis.createClient();
 
     const channel = socket.id
 
