@@ -61,7 +61,7 @@ postgres.connect()
     .then(() => console.info("Sucessfully connected to DB!"))
     .catch(() => console.error('Could not connect to DB!'))
 
-
+//socket.io
 io.on('connection', async (socket: Socket) => {
     var subscriber = redis.createClient();
     subscriber.select(REDIS_DB)
@@ -102,6 +102,8 @@ io.on('connection', async (socket: Socket) => {
     })
 
 })
+
+// express endpoints
 
 app.get("/", (req, res) => res.send("Hello world"))
 
@@ -202,8 +204,6 @@ app.post("/cart", async (req, res) => {
 })
 
 
-
-
 app.post("/order/:custId", async (req, res) => {
     try {
         const { custId } = req.params
@@ -213,9 +213,6 @@ app.post("/order/:custId", async (req, res) => {
         } else if (cart.lines.length === 0) {
             throw new MyError("Cart is empty!")
         }
-
-
-
 
         const client = await pool.connect()
         try {
@@ -302,7 +299,7 @@ app.delete("/cart/:custId/line/:id", async (req, res) => {
 })
 
 
-
+//helper functions
 
 function handleError(e: any, res: any) {
     const status: number = e.status || 500
