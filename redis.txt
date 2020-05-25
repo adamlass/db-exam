@@ -1,0 +1,5 @@
+SELECT 10
+SET msg1 "In case you have any questions, please let us know here!"
+SET msg2 "Hey! Please write us a message if you have any questions about our very special products!"
+SET msg3 "Welcome to our shop. This is where you can get your questions answered!"
+SET msg4 "Once upon a time i had a question about something in a place. I asked someone there about it. They gave me answers. If you ever find yourself in the same situation, please let this chat be that place!"

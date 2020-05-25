@@ -11,7 +11,7 @@ import Line, { ILine } from "./schema/Line"
 import MyError from "./error/MyError"
 import shortid from "shortid"
 
-
+const REDIS_DB = 10
 var redis = require('ioredis');
 const neo4j = require('neo4j-driver')
 
@@ -64,6 +64,7 @@ postgres.connect()
 
 io.on('connection', async (socket: Socket) => {
     var subscriber = redis.createClient();
+    subscriber.select(REDIS_DB)
     const randomKey = await subscriber.randomkey()
     const randomMsg = await subscriber.get(randomKey)
 
@@ -80,6 +81,7 @@ io.on('connection', async (socket: Socket) => {
     subscriber.subscribe(channel)
 
     var publisher = redis.createClient();
+    publisher.select(REDIS_DB)
 
     socket.use((packet: Packet, next: NextFunction) => {
         try {
