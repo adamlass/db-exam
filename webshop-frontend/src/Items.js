@@ -10,7 +10,7 @@ class Items extends Component {
             <>
                 {this.props.items.map(item => {
                     return (
-                        <Item item={item} {...this.props}/>
+                        <Item key={item.id} item={item} {...this.props}/>
                     )
 
                 })}

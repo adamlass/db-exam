@@ -20,8 +20,10 @@ class App extends Component {
 
   state = {
     items: [],
-    cart: []
+    cart: [],
+    cartText: "No items in cart"
   }
+
 
   fetchProductsOfCategory = async (e) => {
     const category = e.target.value
@@ -61,7 +63,7 @@ class App extends Component {
 
   }
 
-  deleteLine = async (_id)=> {
+  deleteLine = async (_id) => {
     let result = await request2({
       url: `http://localhost:3000/cart/${this.custId}/line/${_id}`,
       method: "DELETE"
@@ -71,6 +73,19 @@ class App extends Component {
 
     this.setState({ cart })
 
+  }
+
+  submitOrder = async () => {
+    let result = await request2({
+      url: `http://localhost:3000/order/${this.custId}`,
+      method: "POST"
+    })
+    console.log('result', result)
+    if (result.statusCode !== 200) {
+      alert(JSON.parse(result.body).message)
+    } else {
+      this.setState({ cart: [], cartText: "Order placed with id: " + result.body })
+    }
   }
 
   render() {
@@ -85,7 +100,12 @@ class App extends Component {
             <Items items={this.state.items} addItemToCart={this.addItemToCart} />
           </Col>
           <Col xs={4} className="text-center">
-            <Cart className="mb-4" cart={this.state.cart} deleteLine={this.deleteLine} />
+            <Cart className="mb-4"
+              cart={this.state.cart}
+              custId={this.custId}
+              deleteLine={this.deleteLine}
+              submitOrder={this.submitOrder}
+              cartText={this.state.cartText} />
             <br />
             <Chat />
           </Col>

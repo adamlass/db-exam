@@ -1,9 +1,15 @@
 import React, { Component } from 'react';
 import { Card, CardBody, CardHeader, CardFooter, Button, Col, Row } from 'reactstrap';
+import request2 from './request';
 
-class Cart extends Component {
+class Cart extends Component { 
+    state = {
+        text: "No items in cart"
+    }
+    
     render() {
         let total = 0
+        const isCart = this.props.cart.length === 0
         return (
             <Card>
                 <CardHeader>
@@ -11,15 +17,15 @@ class Cart extends Component {
                 </CardHeader>
                 <CardBody>
                     {
-                        this.props.cart.length === 0 ? <p>No items in cart</p> :
+                        isCart ? <p>{this.props.cartText}</p> :
                             <>
                                 {this.props.cart.map(item => {
-                                    const {_id, amount, name, price } = item
+                                    const { _id, amount, name, price } = item
                                     total += amount * price
                                     return (
                                         <>
-                                                    <p style={{ float: "right", cursor:"pointer" }} onClick={() => this.props.deleteLine(_id)}>x</p>
-                                                    <p><b>{amount}x</b></p>
+                                            <p style={{ float: "right", cursor: "pointer" }} onClick={() => this.props.deleteLine(_id)}>x</p>
+                                            <p><b>{amount}x</b></p>
 
                                             {/* <Row>
                                                 <Col>
@@ -40,7 +46,7 @@ class Cart extends Component {
                     }
                 </CardBody>
                 <CardFooter>
-                    <Button color="success">Place Order</Button>
+                    <Button onClick={this.props.submitOrder} color="success" disabled={isCart}>Place Order</Button>
                 </CardFooter>
             </Card>
         );
