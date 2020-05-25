@@ -7,7 +7,7 @@ import Items from "./Items"
 import request2 from './request';
 import Cart from './Cart';
 import { long } from "./utils/GenUniqueID";
-
+import qs from "querystring";
 
 
 class App extends Component {
@@ -28,7 +28,7 @@ class App extends Component {
   fetchProductsOfCategory = async (e) => {
     const category = e.target.value
     let products = await request2({
-      url: "http://localhost:3000/products?category=" + category
+      url: "http://localhost:3000/products?category=" + escape(category)
     })
     products = JSON.parse(products.body)
     this.setState({ items: products })

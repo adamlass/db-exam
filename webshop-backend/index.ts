@@ -11,6 +11,8 @@ import Line, { ILine } from "./schema/Line"
 import MyError from "./error/MyError"
 import shortid from "shortid"
 import { mongoURI } from "./mongoDB"
+import qs from "querystring";
+
 const REDIS_DB = 10
 var redis = require('ioredis');
 const neo4j = require('neo4j-driver')
@@ -137,12 +139,15 @@ async function getItem(id: string) {
 
 app.get("/products", async (req, res) => {
     try {
-        const { category } = req.query
+        let category: any = req.query.category
+        // let categoryParsed = parse(category.toString())
+        console.log(category)
 
         let result = await session.run(
             'MATCH (c:Category)-[:CONTAINS]->(i:Item) WHERE c.name = $name RETURN i.id',
             { name: category }
         )
+        // console.log(result)
 
         result = result.records.map((record: any) => record["_fields"][0])
 
