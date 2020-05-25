@@ -4,8 +4,12 @@ import bodyParser from 'body-parser'
 import socketio, { Packet, Socket } from "socket.io"
 import http from "http"
 import mongoose from "mongoose"
-import { Client } from 'pg'
+import { Client, Pool } from 'pg'
 import Escape from "pg-escape"
+import Cart, { ICart } from "./schema/Cart"
+import Line, { ILine } from "./schema/Line"
+import MyError from "./error/MyError"
+import shortid from "shortid"
 
 
 var redis = require('ioredis');
@@ -43,13 +47,16 @@ db.once("open", function () {
 });
 
 //Postgres
-const postgres = new Client({
+const config = {
     "user": "postgres",
     "host": "localhost",
     "database": "webshop",
     "password": "postgres",
     "port": 5433
-})
+}
+const postgres = new Client(config)
+const pool = new Pool(config)
+
 postgres.connect()
     .then(() => console.info("Sucessfully connected to DB!"))
     .catch(() => console.error('Could not connect to DB!'))
@@ -92,6 +99,7 @@ io.on('connection', async (socket: Socket) => {
 })
 
 app.get("/", (req, res) => res.send("Hello world"))
+
 app.get("/categories", async (req, res) => {
     try {
         let result = await session.run(
@@ -106,6 +114,19 @@ app.get("/categories", async (req, res) => {
     }
 
 })
+
+async function getItem(id: string) {
+    const sql = `
+                SELECT * 
+                FROM public.item
+                WHERE id = $1
+            `
+    const escaped = Escape(sql)
+
+    const res = await postgres.query(escaped, [id])
+    if (res.rowCount !== 1) return null
+    return res.rows[0]
+}
 
 app.get("/products", async (req, res) => {
     try {
@@ -123,17 +144,11 @@ app.get("/products", async (req, res) => {
         let res1: object[] = []
 
         for (const id of result) {
-            // console.log(id)
-            const sql = `
-                SELECT * 
-                FROM public.item
-                WHERE id = $1
-            `
-            const escaped = Escape(sql)
 
-            const res = await postgres.query(escaped, [id])
-            if(res.rowCount !== 1) continue 
-            res1.push(res.rows[0])
+            const item = await getItem(id)
+            if (!item) continue
+
+            res1.push(item)
         }
 
 
@@ -143,6 +158,142 @@ app.get("/products", async (req, res) => {
         handleError(e, res)
     }
 
+})
+
+async function addNamesToLines(cart: ICart | null) {
+    if (cart) {
+        let res = []
+        for (const line of cart.lines) {
+            const { _id, itemId, amount } = line
+            const item = await getItem(itemId)
+            res.push({ itemId, amount, name: item.name, price: item.price, _id })
+        }
+        return res
+    }
+    return null
+}
+
+app.post("/cart", async (req, res) => {
+    try {
+        const { amount, custId, id } = req.body
+        let cart: ICart | null = await Cart.findOne({ custId: custId })
+        if (!cart) {
+            cart = new Cart({ custId })
+            await cart.save()
+        }
+
+        const line: ILine = new Line({ itemId: id, amount })
+        cart.lines.push(line)
+
+        await cart.save()
+
+        const cartResponse = await addNamesToLines(cart)
+
+        res.send(cartResponse)
+
+    } catch (e) {
+        handleError(e, res)
+    }
+})
+
+
+
+
+app.post("/order/:custId", async (req, res) => {
+    try {
+        const { custId } = req.params
+        let cart: ICart | null = await Cart.findOne({ custId: custId })
+        if (!cart) {
+            throw new MyError("Cart does not exist!")
+        } else if (cart.lines.length === 0) {
+            throw new MyError("Cart is empty!")
+        }
+
+
+
+
+        const client = await pool.connect()
+        try {
+            console.log('BEGIN')
+            await client.query('BEGIN')
+            const getCustomerSql = `
+                SELECT id
+                FROM customer
+                WHERE id=$1
+            `
+
+            let result = await client.query(getCustomerSql, [custId])
+            if (result.rowCount !== 1) {
+                const createCustomerSql = `
+                    INSERT INTO customer
+                    VALUES ($1)
+                `
+                await client.query(createCustomerSql, [custId])
+            }
+
+            const orderSql = `
+                INSERT INTO orders
+                (id, customer_id) VALUES ($1, $2)
+            `
+
+            const orderId = shortid()
+
+            result = await client.query(orderSql, [orderId, custId])
+            if (result.rowCount !== 1) {
+                throw new MyError("Failed to create order!")
+            }
+
+
+            for (const line of cart.lines) {
+                const { itemId, amount } = line
+                const orderLineSql = `
+                    INSERT INTO orderLine
+                    (quantity, order_id, item_id) VALUES ($1,$2,$3)
+                `
+                result = await client.query(orderLineSql, [amount, orderId, itemId])
+                if (result.rowCount !== 1) {
+                    throw new MyError("Failed to create order line!")
+                }
+            }
+
+            await cart.remove()
+
+            console.log('COMMIT')
+            await client.query('COMMIT')
+            res.send(orderId)
+        } catch (e) {
+            console.log('ROLLBACK')
+            console.log(e)
+            await client.query('ROLLBACK')
+            throw e
+        } finally {
+            client.release()
+        }
+
+    } catch (e) {
+        handleError(e, res)
+    }
+
+})
+
+app.delete("/cart/:custId/line/:id", async (req, res) => {
+    try {
+        const { custId, id } = req.params
+        let cart: ICart | null = await Cart.findOne({ custId: custId })
+        if (cart) {
+            cart.lines = cart.lines.filter(line => {
+                if (line._id == id) return false
+                return true
+            })
+            await cart.save()
+        }
+
+        const cartResponse = await addNamesToLines(cart)
+
+        res.send(cartResponse)
+    } catch (e) {
+        handleError(e, res)
+    }
 })
 
 
