@@ -10,7 +10,7 @@ import Cart, { ICart } from "./schema/Cart"
 import Line, { ILine } from "./schema/Line"
 import MyError from "./error/MyError"
 import shortid from "shortid"
-
+import { mongoURI } from "./mongoDB"
 const REDIS_DB = 10
 var redis = require('ioredis');
 const neo4j = require('neo4j-driver')
@@ -36,7 +36,7 @@ server.listen(3000, () => console.log("App is online"))
 
 //mongoose
 mongoose.connect(
-    "mongodb+srv://mongo_user:mongo_user@webshop-vf9eh.mongodb.net/test?retryWrites=true&w=majority",
+    mongoURI,
     { useNewUrlParser: true, useUnifiedTopology: true }
 );
 
