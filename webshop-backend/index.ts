@@ -77,7 +77,8 @@ io.on('connection', async (socket: Socket) => {
     const channel = socket.id
 
     subscriber.on('message', (channel: string, message: string) => {
-        socket.emit("message", "Customer", message)
+        const msg = JSON.parse(message)
+        socket.emit("message", msg.sender, msg.msg)
     });
 
     subscriber.subscribe(channel)
@@ -99,8 +100,20 @@ io.on('connection', async (socket: Socket) => {
 
     })
 
-    socket.on("sendMessage", (message) => {
-        publisher.publish(channel, message);
+    socket.on("sendMessage", async (message) => {
+        let msg = {
+            sender: "Customer",
+            msg: message
+        }
+        publisher.publish(channel, JSON.stringify(msg));
+        
+        setTimeout(() => {
+            msg = {
+                sender: "Employee",
+                msg: `To read the answer for your question, please open the following link: https://bit.ly/2ZO0Oyp`
+            }
+            publisher.publish(channel, JSON.stringify(msg));
+        }, Math.ceil(Math.random() * 3000))
     })
 
 })
