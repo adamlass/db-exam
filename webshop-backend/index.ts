@@ -50,10 +50,10 @@ db.once("open", function () {
 
 //Postgres
 const config = {
-    "user": "postgres",
+    "user": "webshop-client",
     "host": "localhost",
     "database": "webshop",
-    "password": "postgres",
+    "password": "webcli1234",
     "port": 5433
 }
 const postgres = new Client(config)
